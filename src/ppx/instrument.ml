@@ -490,7 +490,7 @@ struct
         |> List.map (fun (location_trace, p'') ->
           (location_trace, Pat.alias ~loc ~attrs p'' x))
 
-      | Ppat_construct (c, Some p') ->
+      | Ppat_construct (c, Some (_, p')) ->
         recur ~enclosing_loc p'
         |> List.map (fun (location_trace, p'') ->
           (location_trace, Pat.construct ~loc ~attrs c (Some p'')))
@@ -708,7 +708,7 @@ struct
       List.map (fun (_, p') -> bound_variables p') fields
       |> List.flatten
 
-    | Ppat_construct (_, Some p') | Ppat_variant (_, Some p')
+    | Ppat_construct (_, Some (_, p')) | Ppat_variant (_, Some p')
     | Ppat_constraint (p', _) | Ppat_lazy p' | Ppat_exception p'
     | Ppat_open (_, p') ->
       bound_variables p'
@@ -725,7 +725,7 @@ struct
     | Ppat_type _ | Ppat_variant _ ->
       true
 
-    | Ppat_alias (p', _) | Ppat_construct (_, Some p')
+    | Ppat_alias (p', _) | Ppat_construct (_, Some (_, p'))
     | Ppat_constraint (p', _) | Ppat_lazy p' | Ppat_exception p'
     | Ppat_open (_, p') ->
       has_polymorphic_variant p'
@@ -1039,39 +1039,39 @@ class instrumenter =
   let instrument_cases = Generated_code.instrument_cases points in
 
   object (self)
-    inherit Ppxlib.Ast_traverse.map_with_expansion_context as super
+    inherit Ppxlib.Ast_traverse.map_with_expansion_context_and_errors as super
 
     method! class_expr ctxt ce =
       let loc = ce.pcl_loc in
       let attrs = ce.pcl_attributes in
-      let ce = super#class_expr ctxt ce in
-
-      match ce.pcl_desc with
+      let desc = ce.pcl_desc in
+      let ce' = super#class_expr ctxt ce in
+      match desc with
       | Pcl_fun (l, e, p, ce) ->
-        Cl.fun_ ~loc ~attrs l (Option.map instrument_expr e) p ce
+        (Cl.fun_ ~loc ~attrs l (Option.map instrument_expr e) p ce , [])
 
       | _ ->
-        ce
+        (ce, [])
 
     method! class_field ctxt cf =
       let loc = cf.pcf_loc in
       let attrs = cf.pcf_attributes in
-      let cf = super#class_field ctxt cf in
+      let cf' = super#class_field ctxt cf in
 
       match cf.pcf_desc with
       | Pcf_method (name, private_, cf) ->
-        Cf.method_ ~loc ~attrs
+        (Cf.method_ ~loc ~attrs
           name private_
           (match cf with
           | Cfk_virtual _ -> cf
           | Cfk_concrete (o, e) ->
-            Cf.concrete o (instrument_expr e))
+            Cf.concrete o (instrument_expr e)), [])
 
       | Pcf_initializer e ->
-        Cf.initializer_ ~loc ~attrs (instrument_expr e)
+          (Cf.initializer_ ~loc ~attrs (instrument_expr e), [])
 
       | _ ->
-        cf
+        (cf, [])
 
     method! expression ctxt e =
       let is_trivial_function = Parsetree.(function
@@ -1494,17 +1494,19 @@ class instrumenter =
                 (f, traverse ~is_in_tail_position:false e)))
 
           | Pexp_letmodule (m, e, e') ->
+            let (p, _) = self#module_expr ctxt e in 
             Exp.letmodule ~loc ~attrs
               m
-              (self#module_expr ctxt e)
+              p
               (traverse ~is_in_tail_position e')
 
           | Pexp_letexception (c, e) ->
             Exp.letexception ~loc ~attrs c (traverse ~is_in_tail_position e)
 
           | Pexp_open (m, e) ->
+            let (p, _) = self#open_declaration ctxt m in 
             Exp.open_ ~loc ~attrs
-              (self#open_declaration ctxt m)
+              p
               (traverse ~is_in_tail_position e)
 
           | Pexp_newtype (t, e) ->
@@ -1513,10 +1515,12 @@ class instrumenter =
           (* Expressions that don't need instrumentation, and where AST
              traversal leaves the expression language. *)
           | Pexp_object c ->
-            Exp.object_ ~loc ~attrs (self#class_structure ctxt c)
+            let (p, _) = (self#class_structure ctxt c) in
+            Exp.object_ ~loc ~attrs p
 
           | Pexp_pack m ->
-            Exp.pack ~loc ~attrs (self#module_expr ctxt m)
+            let (p, _) = (self#module_expr ctxt m) in
+            Exp.pack ~loc ~attrs p
 
           (* Expressions that are not recursively traversed at all. *)
           | Pexp_extension _ | Pexp_unreachable ->
@@ -1536,7 +1540,7 @@ class instrumenter =
 
       in
 
-      traverse ~is_in_tail_position:false e
+      (traverse ~is_in_tail_position:false e, [])
 
     (* Set to [true] upon encountering [[@@@coverage.off]], and back to
        [false] again upon encountering [[@@@coverage.on]]. *)
@@ -1548,7 +1552,7 @@ class instrumenter =
       match si.pstr_desc with
       | Pstr_value (rec_flag, bindings) ->
         if structure_instrumentation_suppressed then
-          si
+         (si, [])
 
         else
           let bindings =
@@ -1580,16 +1584,18 @@ class instrumenter =
               if do_not_instrument then
                 binding
               else
-                {binding with pvb_expr = self#expression ctxt binding.pvb_expr}
+                let (p, _) = self#expression ctxt binding.pvb_expr in
+                {binding with pvb_expr = p}
             end
           in
-          Str.value ~loc rec_flag bindings
+          (Str.value ~loc rec_flag bindings, [])
 
       | Pstr_eval (e, a) ->
         if structure_instrumentation_suppressed then
-          si
+          (si, [])
         else
-          Str.eval ~loc ~attrs:a (self#expression ctxt e)
+          let (p, e) = self#expression ctxt e in 
+          (Str.eval ~loc ~attrs:a (p), e)
 
       | Pstr_attribute attribute ->
         let kind = Coverage_attributes.recognize attribute in
@@ -1612,17 +1618,17 @@ class instrumenter =
           Location.raise_errorf
             ~loc:attribute.attr_loc "coverage exclude_file is not allowed here."
         end;
-        si
+        (si, [])
 
       | _ ->
         super#structure_item ctxt si
 
     (* Don't instrument payloads of extensions and attributes. *)
     method! extension _ e =
-      e
+      (e, [])
 
     method! attribute _ a =
-      a
+      (a, [])
 
     method! structure ctxt ast =
       let saved_structure_instrumentation_suppressed =
@@ -1655,7 +1661,7 @@ class instrumenter =
           ast
 
         else begin
-          let instrumented_ast = super#structure ctxt ast in
+          let (instrumented_ast, []) = super#structure ctxt ast in
           let runtime_initialization =
             Generated_code.runtime_initialization points path in
           runtime_initialization @ instrumented_ast
