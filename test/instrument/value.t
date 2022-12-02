@@ -189,7 +189,12 @@ No instrumentation is inserted into expressions that are (syntactic) values.
     `Foo
   
   let _ = (___bisect_post_visit___ 1 (f ()) :> [ `Foo | `Bar ])
-  let _ = fun () -> (f () :> [ `Foo | `Bar ])
+  
+  let _ =
+   fun () ->
+    ___bisect_visit___ 2;
+    (f () :> [ `Foo | `Bar ])
+
 
 
   $ bash test.sh <<'EOF'
