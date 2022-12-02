@@ -2,9 +2,9 @@
 
 set -e
 
-git remote set-url origin git@github.com:aantron/bisect_ppx.git
-git config user.name "Anton Bachin"
-git config user.email "antonbachin@yahoo.com"
+git remote set-url origin git@github.com:jfrolich/bisect_ppx.git
+git config user.name "Jaap Frolich"
+git config user.email "jfrolich@gmail.com"
 mkdir -p ~/.ssh
 chmod 700 ~/.ssh
 echo "$DEPLOY_KEY" | base64 --decode > ~/.ssh/binaries
