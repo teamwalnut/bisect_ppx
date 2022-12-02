@@ -78,5 +78,4 @@ Non-coverage attributes are preserved uninstrumented.
   [@@@foo print_endline "bar"]
   
   let _ = () [@@foo print_endline "bar"]
-  
   let _ = () [@foo print_endline "bar"]
