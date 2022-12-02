@@ -55,12 +55,12 @@ jobs:
       - name: Install ocamlformat (Linux)
         if: ${{runner.os == 'Linux'}}
         run: |
-          wget https://github.com/aantron/ocamlformat-binary/releases/download/0.15.0/ocamlformat
+          wget https://github.com/aantron/ocamlformat-binary/releases/download/0.24.1/ocamlformat
           sudo mv ocamlformat /usr/local/bin/ocamlformat
           sudo chmod a+x /usr/local/bin/ocamlformat
       - name: Install ocamlformat (non-Linux)
         if: ${{runner.os != 'Linux'}}
-        run: opam install ocamlformat.0.16.0 --yes
+        run: opam install ocamlformat.0.24.1 --yes
 
       - name: Install coreutils (Mac)
         if: ${{runner.os == 'macOS'}}
