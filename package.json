@@ -35,5 +35,8 @@
     "src",
     "bin",
     "bisect-ppx-report"
-  ]
+  ],
+  "dependencies": {
+    "rescript": "10.1.0"
+  }
 }
