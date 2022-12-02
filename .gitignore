@@ -34,3 +34,7 @@ lib/
 _esy/
 *.tgz
 package/
+
+*.esy.lock
+esy.lock
+bisect-ppx-report
