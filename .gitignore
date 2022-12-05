@@ -37,3 +37,4 @@ package/
 
 *.esy.lock
 esy.lock
+.DS_Store
