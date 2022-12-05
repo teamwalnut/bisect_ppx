@@ -12,6 +12,7 @@ esy_build() {
 }
 
 UNAME=`uname -s`
+ARCH=`uname -m`
 RESULT=$?
 if [ "$RESULT" != 0 ]
 then
@@ -21,7 +22,11 @@ fi
 
 case "$UNAME" in
     "Linux") OS=linux;;
-    "Darwin") OS=macos;;
+    "Darwin") 
+        case "$ARCH" in
+            "arm64") OS=macos_m1;;
+            *) OS=macos;;
+        esac;;
     *) echo "Unknown OS '$UNAME'; falling back to a source build."; esy_build;;
 esac
 
