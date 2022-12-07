@@ -1,25 +1,6 @@
 #!/usr/bin/env bash
-
-esy_build() {
-    set -e
-    set -x
-    esy install -P binaries.esy.json
-    esy -P binaries.esy.json dune build -p bisect_ppx src/ppx/js/ppx.exe
-    cp _build/default/src/ppx/js/ppx.exe ./ppx
-    esy -P binaries.esy.json dune build -p bisect_ppx src/report/main.exe
-    cp _build/default/src/report/main.exe ./bisect-ppx-report
-    exit 0
-}
-
 UNAME=`uname -s`
 ARCH=`uname -m`
-RESULT=$?
-if [ "$RESULT" != 0 ]
-then
-    echo "Cannot detect OS; falling back to a source build."
-    esy_build
-fi
-
 case "$UNAME" in
     "Linux") OS=linux;;
     "Darwin") 
@@ -29,6 +10,27 @@ case "$UNAME" in
         esac;;
     *) echo "Unknown OS '$UNAME'; falling back to a source build."; esy_build;;
 esac
+
+esy_build() {
+    set -e
+    set -x
+    esy install -P binaries.esy.json
+    esy -P binaries.esy.json dune build -p bisect_ppx src/ppx/js/ppx.exe
+    cp _build/default/src/ppx/js/ppx.exe ./ppx
+    esy -P binaries.esy.json dune build -p bisect_ppx src/report/main.exe
+    cp _build/default/src/report/main.exe ./bisect-ppx-report
+    # cp ./ppx bin/$OS/ppx 
+    # cp ./bisect-ppx-report bin/$OS/bisect-ppx-report 
+    exit 0
+}
+
+RESULT=$?
+if [ "$RESULT" != 0 ]
+then
+    echo "Cannot detect OS; falling back to a source build."
+    esy_build
+fi
+
 
 if [ ! -f bin/$OS/ppx ]
 then
