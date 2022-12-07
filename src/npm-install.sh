@@ -1,4 +1,15 @@
 #!/usr/bin/env bash
+UNAME=`uname -s`
+ARCH=`uname -m`
+case "$UNAME" in
+    "Linux") OS=linux;;
+    "Darwin") 
+        case "$ARCH" in
+            "arm64") OS=macos_m1;;
+            *) OS=macos;;
+        esac;;
+    *) echo "Unknown OS '$UNAME'; falling back to a source build."; esy_build;;
+esac
 
 esy_build() {
     set -e
@@ -8,10 +19,11 @@ esy_build() {
     cp _build/default/src/ppx/js/ppx.exe ./ppx
     esy -P binaries.esy.json dune build -p bisect_ppx src/report/main.exe
     cp _build/default/src/report/main.exe ./bisect-ppx-report
+    # cp ./ppx bin/$OS/ppx 
+    # cp ./bisect-ppx-report bin/$OS/bisect-ppx-report 
     exit 0
 }
 
-UNAME=`uname -s`
 RESULT=$?
 if [ "$RESULT" != 0 ]
 then
@@ -19,11 +31,6 @@ then
     esy_build
 fi
 
-case "$UNAME" in
-    "Linux") OS=linux;;
-    "Darwin") OS=macos;;
-    *) echo "Unknown OS '$UNAME'; falling back to a source build."; esy_build;;
-esac
 
 if [ ! -f bin/$OS/ppx ]
 then

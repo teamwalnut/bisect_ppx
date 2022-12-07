@@ -18,7 +18,6 @@
   > let _f () = ()
   > EOF
   $ dune build ./not_excluded.bc --instrument-with bisect_ppx 2>&1 | tail -n +2
-  [@@@ocaml.ppx.context
     {
       tool_name = "ppx_driver";
       include_dirs = [];
@@ -52,7 +51,6 @@
   let _f () = ___bisect_visit___ 0; ()
 
   $ dune build ./excluded_1.bc --instrument-with bisect_ppx 2>&1 | tail -n +2
-  [@@@ocaml.ppx.context
     {
       tool_name = "ppx_driver";
       include_dirs = [];
